@@ -1,0 +1,9 @@
+# CPU Cores (Max 4)
+CORES=2
+
+# Memory
+RAM=2G
+
+# Video
+# VIDEO=1920x1080
+VIDEO=""

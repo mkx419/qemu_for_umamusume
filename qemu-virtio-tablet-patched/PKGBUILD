@@ -1,0 +1,190 @@
+# Maintainer: mk-419 <mk419@fascode.net>
+
+_pkgname=qemu
+
+pkgname=qemu-virtio-tablet-patched
+pkgdesc="QEMU with a fix for virtio-tablet-pci"
+pkgver=6.1.0
+pkgrel=1
+arch=(x86_64)
+
+license=(
+    GPL2
+    LGPL2.1
+)
+
+url="https://wiki.qemu.org/"
+
+depends=(
+    brltty
+    curl
+    dtc
+    fuse3
+    gnutls
+    libaio
+    libbpf
+    libcacard
+    libcap-ng
+    libjack.so
+    libnfs
+    libpng
+    libpulse
+    libslirp
+    libssh
+    liburing
+    lzo
+    ndctl
+    numactl
+    sdl2
+    seabios
+    snappy
+    spice
+    usbredir
+    vde2
+    virglrenderer
+    vte3
+    zstd
+)
+
+makedepends=(
+    ceph
+    glusterfs
+    libiscsi
+    ninja
+    python
+    python-sphinx
+    python-sphinx_rtd_theme
+    spice-protocol
+    xfsprogs
+)
+
+optdepends=(
+    "samba: SMB/CIFS server support"
+    "qemu-arch-extra: extra architectures support"
+    "qemu-block-iscsi: iSCSI block support"
+    "qemu-block-rbd: RBD block support"
+    "qemu-block-gluster: glusterfs block support"
+)
+
+provides=(qemu-headless)
+conflicts=(qemu-headless)
+replaces=(qemu-kvm)
+install=qemu-virtio-tablet-patched.install
+
+options=(
+    !strip
+    !emptydirs
+)
+
+source=(
+    "https://download.qemu.org/qemu-${pkgver}.tar.xz"
+    "https://download.qemu.org/qemu-${pkgver}.tar.xz.sig"
+    65-kvm.rules
+    virtio-tablet.patch
+)
+
+md5sums=(
+    "47f776c276a24f42108ba512a2aa3013"
+    "SKIP"
+    "06716a9ceee1730d2a77a4e0fe49f846"
+    "18f35078bba26e03abd77268aa938b25"
+)
+
+validpgpkeys=("CEACC9E15534EBABB82D3FA03353C9CEF108B584") # Michael Roth <flukshun@gmail.com>
+
+prepare() {
+    mkdir build
+
+    cd "${_pkgname}-${pkgver}"
+
+    patch -Np1 < ../virtio-tablet.patch
+}
+
+build() {
+    cd build
+
+    "../${_pkgname}-${pkgver}/configure" \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        --libexecdir=/usr/lib/qemu \
+        --smbd=/usr/bin/smbd \
+        --enable-modules \
+        --enable-sdl \
+        --enable-slirp=system \
+        --enable-xfsctl \
+        --audio-drv-list="pa alsa sdl jack"
+    
+    ninja
+}
+
+package() {
+    DESTDIR="${pkgdir}" ninja -C build install
+
+    # systemd stuff
+    install -Dm644 65-kvm.rules "${pkgdir}/usr/lib/udev/rules.d/65-kvm.rules"
+
+    # remove conflicting /var/run directory
+    
+    cd "${pkgdir}"
+    rm -r var
+
+    cd usr/lib
+
+    # bridge_helper needs suid
+    # https://bugs.archlinux.org/task/32565
+    chmod u+s qemu/qemu-bridge-helper
+
+    # remove split block modules
+    rm qemu/block-{iscsi,rbd,gluster}.so
+
+    cd ../bin
+
+    # remove extra arch
+    for _bin in qemu-*; do
+        [[ -f "${_bin}" ]] || continue
+
+        case "${_bin#qemu-}" in
+            # guest agent
+            ga) rm "${_bin}"; continue ;;
+
+            # tools
+            edid|img|io|keymap|nbd|pr-helper|storage-daemon) continue ;;
+
+            # core emu
+            system-x86_64) continue ;;
+        esac
+
+        rm "${_bin}" 
+    done
+
+    cd ../share/qemu
+
+    for _blob in *; do
+        [[ -f "${_blob}" ]] || continue
+
+        case "${_blob}" in
+            # provided by seabios package
+            bios.bin|bios-256k.bin|vgabios-cirrus.bin|vgabios-qxl.bin|\
+            vgabios-stdvga.bin|vgabios-vmware.bin|vgabios-virtio.bin|vgabios-bochs-display.bin|\
+            vgabios-ramfb.bin) rm "${_blob}"; continue ;;
+
+            # provided by edk2-ovmf package
+            edk2-*) rm "${_blob}"; continue ;;
+
+            # iPXE ROMs
+            efi-*|pxe-*) continue ;;
+
+            # core blobs
+            bios-microvm.bin|kvmvapic.bin|linuxboot*|multiboot.bin|sgabios.bin|vgabios*) continue ;;
+
+            # Trace events definitions
+            trace-events*) continue ;;
+        esac
+
+        rm "${_blob}"
+    done
+
+    # provided by edk2-ovmf package
+    rm -r firmware
+}

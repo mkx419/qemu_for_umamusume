@@ -1,0 +1,40 @@
+# Maintainer: mk-419 <mk419@fascode.net>
+
+_pkgver=9.0-r2
+
+pkgname=qemu-umamusume
+pkgdesc="QEMU for Uma Musume"
+pkgver="${_pkgver//-/.}"
+pkgrel=1
+arch=(x86_64)
+license=(GPL2 LGPL2.1)
+url="https://github.com/mk-419/qemu_for_umamusume"
+depends=(qemu-virtio-tablet-patched)
+
+source=(
+    initrd.img
+    kernel
+    ramdisk.img
+    system.sfs
+    config
+    qemu-umamusume
+)
+
+md5sums=(
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "c14d07297ba36a3f30503ae4ec16e49a"
+    "39ad163801b2481d8abe551283f3e6cf"
+)
+
+package() {
+    mkdir -p "${pkgdir}"/usr/{bin,share/qemu-umamusume}
+    install -m0644 "${srcdir}/initrd.img" "${pkgdir}/usr/share/qemu-umamusume"
+    install -m0644 "${srcdir}/kernel" "${pkgdir}/usr/share/qemu-umamusume"
+    install -m0644 "${srcdir}/ramdisk.img" "${pkgdir}/usr/share/qemu-umamusume"
+    install -m0644 "${srcdir}/system.sfs" "${pkgdir}/usr/share/qemu-umamusume"
+    install -m0644 "${srcdir}/config" "${pkgdir}/usr/share/qemu-umamusume"
+    install -m0755 "${srcdir}/qemu-umamusume" "${pkgdir}/usr/bin"
+}

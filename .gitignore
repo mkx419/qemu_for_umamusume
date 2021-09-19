@@ -1,0 +1,10 @@
+source
+*/pkg
+*/src
+*/*.pkg.tar.zst
+qemu-virtio-tablet-patched/qemu-*.tar.xz
+qemu-virtio-tablet-patched/qemu-*.tar.xz.sig
+qemu-umamusume/initrd.img
+qemu-umamusume/kernel
+qemu-umamusume/ramdisk.img
+qemu-umamusume/system.sfs

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Load Config
+if [[ -f "${HOME}/.config/qemu-umamusume/config" ]]; then
+    source "${HOME}/.config/qemu-umamusume/config"
+else
+    source /usr/share/qemu-umamusume/config
+fi
+
+if [[ "${VIDEO}" != "" ]]; then
+	VIDEO_CMDLINE="video=${VIDEO}"
+fi
+
+# Create data.img
+if [[ ! -f "${HOME}/.local/share/qemu-umamusume/data.img" ]]; then
+    mkdir -p "${HOME}/.local/share/qemu-umamusume"
+    truncate -s 20G "${HOME}/.local/share/qemu-umamusume/data.img"
+    mkfs.ext4 "${HOME}/.local/share/qemu-umamusume/data.img"
+fi
+
+# Qemu
+qemu-system-x86_64 \
+    -machine type=pc,accel=kvm,vmport=off \
+    -cpu host \
+    -smp cpus="${CORES}",cores="${CORES}",threads=1 \
+    -boot menu=on \
+    -m "${RAM}" \
+    -device intel-hda \
+    -device hda-duplex \
+    -device virtio-keyboard-pci \
+    -device virtio-tablet-pci \
+    -device virtio-vga-gl \
+	-drive index=0,if=virtio,id=system,file=/usr/share/qemu-umamusume/system.sfs,format=raw,readonly=on \
+	-drive index=1,if=virtio,id=ramdisk,file=/usr/share/qemu-umamusume/ramdisk.img,format=raw,readonly=on \
+	-drive index=2,if=virtio,id=data,file="${HOME}/.local/share/qemu-umamusume/data.img",format=raw \
+    -display sdl,gl=es,show-cursor=on \
+    -net nic,model=virtio-net-pci \
+    -net user \
+    -kernel /usr/share/qemu-umamusume/kernel \
+	-append "root=/dev/ram0 RAMDISK=vdb DATA=vdc VULKAN=1 ${VIDEO_CMDLINE}" \
+	-initrd /usr/share/qemu-umamusume/initrd.img \
+    -enable-kvm
